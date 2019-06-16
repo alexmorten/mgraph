@@ -67,24 +67,25 @@ func (db *DB) Shutdown() error {
 
 //Update the db with the given query
 func (db *DB) Update(query *proto.Query) (*proto.QueryResponse, error) {
+	response := &proto.QueryResponse{}
+
 	err := db.store.Update(func(txn *badger.Txn) error {
 		for _, statement := range query.Statements {
 			s := statement.GetCreate()
 			ctx := newWriteContext(txn)
-			n := ctx.descendNode(s.Root)
-			fmt.Println(n)
+			_, writtenRoot := ctx.descendNode(s.Root)
 			err := ctx.write()
 			if err != nil {
 				return err
 			}
+			response.Result = append(response.Result, &proto.StatementResult{Root: writtenRoot})
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
-	response := &proto.QueryResponse{}
+
 	return response, nil
 }
 

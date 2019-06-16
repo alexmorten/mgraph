@@ -5,7 +5,9 @@ import (
 
 	"github.com/alexmorten/mgraph/db"
 	"github.com/alexmorten/mgraph/proto"
+	json "github.com/golang/protobuf/jsonpb"
 
+	"bytes"
 	"time"
 )
 
@@ -46,9 +48,13 @@ func NewServer() *Server {
 		Statements: []*proto.Statement{&proto.Statement{Type: writeStatement}},
 	}
 
-	fmt.Println(db.Update(q))
-
-	db.Find("50e687b9-3c36-414e-adc0-73d49e0aa57f")
+	response, err := db.Update(q)
+	he(err)
+	m := json.Marshaler{Indent: " "}
+	b := &bytes.Buffer{}
+	he(m.Marshal(b, response))
+	fmt.Println(b.String())
+	// db.Find("50e687b9-3c36-414e-adc0-73d49e0aa57f")
 	db.Shutdown()
 	return &Server{
 		db: db,

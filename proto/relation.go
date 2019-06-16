@@ -14,3 +14,12 @@ func ConstructRelation(qr *QueryRelation) *Relation {
 
 	return r
 }
+
+//ConstructQueryRelation from QueryRelation
+func ConstructQueryRelation(r *Relation) *QueryRelation {
+	return &QueryRelation{
+		Key:        r.Key,
+		Type:       r.Type,
+		Attributes: r.Attributes,
+	}
+}

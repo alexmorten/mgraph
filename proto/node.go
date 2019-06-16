@@ -19,6 +19,15 @@ func ConstructNode(qn *QueryNode) *Node {
 	return n
 }
 
+// ConstructQueryNode from node
+func ConstructQueryNode(n *Node) *QueryNode {
+	return &QueryNode{
+		Key:        n.Key,
+		Type:       n.Type,
+		Attributes: n.Attributes,
+	}
+}
+
 func newKey() string {
 	return uuid.New().String()
 }
