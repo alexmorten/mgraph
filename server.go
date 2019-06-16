@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	"github.com/alexmorten/mgraph/db"
+	"github.com/alexmorten/mgraph/proto"
+
+	"time"
 )
 
 //Server ..
@@ -13,28 +16,42 @@ type Server struct {
 
 //NewServer with initialized DB
 func NewServer() *Server {
-	d := db.NewDB()
-	fmt.Println("before init: ")
-	d.Print()
-	err := d.Init()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("after init: ")
-	d.Print()
-	n1 := db.NewNode()
-	n2 := db.NewNode()
-
-	he(d.AddNode(n1))
-	he(d.AddNode(n2))
-
-	err = d.AddRelation(db.NewRelation(n1.Key, "BELONGS_TO", n2.Key))
+	db, err := db.NewDB(db.DefaultConfig())
 	he(err)
-	fmt.Println("after adding stuff: ")
-	d.Print()
+	writeStatement := &proto.Statement_Create{
+		Create: &proto.CreateStatement{
+			Root: &proto.QueryNode{
+				Attributes: map[string]*proto.AttributeValue{
+					"name": &proto.AttributeValue{Value: &proto.AttributeValue_StringValue{StringValue: "Tom"}},
+				},
+				Relations: []*proto.QueryRelation{
+					&proto.QueryRelation{
+						Type: "MARRIED",
+						Attributes: map[string]*proto.AttributeValue{
+							"since": &proto.AttributeValue{Value: &proto.AttributeValue_IntValue{IntValue: time.Now().Unix()}},
+						},
+						Direction: &proto.QueryRelation_To{To: &proto.QueryNode{
+							Attributes: map[string]*proto.AttributeValue{
+								"name": &proto.AttributeValue{Value: &proto.AttributeValue_StringValue{StringValue: "Jenny"}},
+							},
+						},
+						},
+					},
+				},
+			},
+		},
+	}
 
+	q := &proto.Query{
+		Statements: []*proto.Statement{&proto.Statement{Type: writeStatement}},
+	}
+
+	fmt.Println(db.Update(q))
+
+	db.Find("50e687b9-3c36-414e-adc0-73d49e0aa57f")
+	db.Shutdown()
 	return &Server{
-		db: d,
+		db: db,
 	}
 }
 

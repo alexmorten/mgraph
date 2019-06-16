@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package proto;
+
+import "proto/db.proto";
+
+message QueryNode {
+  string key = 1;
+  string type = 2;
+  map<string, AttributeValue> attributes = 3;
+  repeated QueryRelation relations = 4;
+
+  string result_name = 5;
+}
+
+message QueryRelation {
+  string key = 1;
+  string type = 2;
+  oneof direction {
+    QueryNode from = 3;
+    QueryNode to = 4;
+  }
+  map<string, AttributeValue> attributes = 5;
+
+  string result_name = 6;
+}
+
+message CreateStatement {
+  QueryNode root = 1;
+}
+
+message FindStatement {
+  QueryNode root = 1;
+}
+
+
+message Statement {
+  oneof type {
+    CreateStatement create = 1;
+    FindStatement find = 2;
+  }
+}
+
+message StatementResult {
+  QueryNode root = 1;
+}
+
+message Query {
+  repeated Statement statements = 1;
+}
+
+message QueryResponse {
+  repeated StatementResult result = 1;
+}
+
+service MGraph {
+  rpc ReadWrite (Query) returns (QueryResponse);
+  rpc Read (Query) returns (QueryResponse);
+}

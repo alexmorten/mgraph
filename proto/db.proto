@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package proto;
+
+message Node {
+  string key = 1;
+  string type = 2;
+  map<string, AttributeValue> attributes = 3;
+  repeated Relation relations = 4;
+}
+
+message AttributeValue {
+  oneof value {
+    string string_value = 1;
+    int64 int_value = 2;
+    float float_value = 3;
+    double double_value = 4;
+  }
+}
+
+message Relation {
+  string key = 1;
+  string type = 2;
+  string from = 3;
+  string to = 4;
+  map<string, AttributeValue> attributes = 5;
+}

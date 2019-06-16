@@ -1,13 +1,13 @@
 package db
 
 import (
-	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/alexmorten/mgraph/chlog"
-	"github.com/google/btree"
+	"github.com/alexmorten/mgraph/proto"
+	"github.com/dgraph-io/badger"
+	pb "github.com/golang/protobuf/proto"
 )
 
 var (
@@ -20,161 +20,92 @@ var (
 
 //DB resides in memory
 type DB struct {
-	tree         *btree.BTree
-	changeWriter *chlog.Writer
+	store *badger.DB
+}
+
+//Config for DB
+type Config struct {
+	Dir string
+}
+
+//DefaultConfig for DB
+func DefaultConfig() Config {
+	return Config{
+		Dir: "data",
+	}
 }
 
 //NewDB with initialized tree
-func NewDB() *DB {
-	registerGobTypes()
-	return &DB{
-		tree: btree.New(2),
+func NewDB(c Config) (*DB, error) {
+	opts := badger.DefaultOptions
+	opts.Dir = c.Dir
+	opts.ValueDir = c.Dir
+
+	store, err := badger.Open(opts)
+	if err != nil {
+		return nil, err
 	}
+
+	db := &DB{
+		store: store,
+	}
+	info := db.store.Tables()
+	b, err := json.MarshalIndent(info, "", " ")
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("table info:")
+	fmt.Println(string(b))
+
+	return db, nil
 }
 
-//Init DB from disk and set changeWriter
-func (db *DB) Init() error {
-	logConfig := chlog.DefaultConfig()
-	changeChan, err := chlog.ReadAllChanges(logConfig)
+//Shutdown the db
+func (db *DB) Shutdown() error {
+	return db.store.Close()
+}
 
-	if err != nil && err != chlog.ErrNoChangeLog {
-		return err
-	}
-
-	if err == chlog.ErrNoChangeLog {
-		fmt.Println(err.Error(), "starting with empty DB")
-	} else {
-		fmt.Println("Initializing DB from changelog...")
-		for change := range changeChan {
-			data := change.Data
-			switch data.(type) {
-			case *Node:
-				n := data.(*Node)
-				db.addNode(n)
-			default:
-				return ErrUnexpectedChangeType
+//Update the db with the given query
+func (db *DB) Update(query *proto.Query) (*proto.QueryResponse, error) {
+	err := db.store.Update(func(txn *badger.Txn) error {
+		for _, statement := range query.Statements {
+			s := statement.GetCreate()
+			ctx := newWriteContext(txn)
+			n := ctx.descendNode(s.Root)
+			fmt.Println(n)
+			err := ctx.write()
+			if err != nil {
+				return err
 			}
 		}
-		fmt.Println("DB filled with values")
-	}
-
-	changeWriter, err := chlog.NewWriter(logConfig)
-	if err != nil {
-		return err
-	}
-	db.changeWriter = changeWriter
-
-	return nil
-}
-
-//Print the contents of the DB
-func (db *DB) Print() {
-	db.tree.Ascend(func(item btree.Item) bool {
-		fmt.Println(item.(*Node))
-		return true
-	})
-}
-
-//AddNode to DB
-func (db *DB) AddNode(n *Node) error {
-	err := db.changeWriter.WriteChange(&chlog.Change{
-		Ts:   time.Now(),
-		Data: n,
-	})
-	if err != nil {
-		return err
-	}
-	db.addNode(n)
-
-	return nil
-}
-
-func (db *DB) addNode(n *Node) {
-	db.tree.ReplaceOrInsert(n)
-}
-
-//ReplaceNode in DB
-func (db *DB) ReplaceNode(n *Node) error {
-	err := db.replaceNode(n)
-	if err != nil {
-		return err
-	}
-
-	err = db.changeWriter.WriteChange(&chlog.Change{
-		Ts:   time.Now(),
-		Data: n,
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (db *DB) replaceNode(n *Node) error {
-	if db.tree.Has(n) {
-		db.tree.ReplaceOrInsert(n)
 		return nil
-	}
+	})
 
-	return ErrNodeNotFound
+	if err != nil {
+		return nil, err
+	}
+	response := &proto.QueryResponse{}
+	return response, nil
 }
 
-//AddRelation to nodes
-func (db *DB) AddRelation(r Relation) error {
-	return db.addRelation(r, true)
-}
-
-//AddRelation to nodes
-func (db *DB) addRelation(r Relation, writeChanges bool) error {
-	fromItem := db.tree.Get(r.From)
-	toItem := db.tree.Get(r.To)
-
-	if fromItem == nil && toItem == nil {
-		return ErrNodeNotFound
-	}
-
-	if fromItem != nil {
-		fmt.Println("from")
-		fromNode := fromItem.(*Node)
-		r.from = fromNode
-		fromNode.AddOrReplaceRelation(r)
-
-		if writeChanges {
-			err := db.changeWriter.WriteChange(&chlog.Change{
-				Ts:   time.Now(),
-				Data: fromNode,
-			})
-			if err != nil {
-				return err
-			}
+//Find Node
+func (db *DB) Find(key string) {
+	db.store.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(key))
+		if err != nil {
+			return err
 		}
-	}
-
-	if toItem != nil {
-		fmt.Println("to")
-		toNode := toItem.(*Node)
-		r.from = toNode
-		toNode.AddOrReplaceRelation(r)
-
-		if writeChanges {
-			err := db.changeWriter.WriteChange(&chlog.Change{
-				Ts:   time.Now(),
-				Data: toNode,
-			})
-			if err != nil {
-				return err
-			}
-
+		b, err := item.Value()
+		if err != nil {
+			return err
+		}
+		n := &proto.Node{}
+		err = pb.Unmarshal(b, n)
+		if err != nil {
+			return err
 		}
 
-	}
-
-	return nil
-}
-
-func registerGobTypes() {
-	gob.Register(&Node{})
-	gob.Register(&Relation{})
-	gob.Register(&chlog.Change{})
+		fmt.Println(n)
+		return nil
+	})
 }
