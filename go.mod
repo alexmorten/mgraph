@@ -10,8 +10,12 @@ require (
 	github.com/google/btree v1.0.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/pkg/errors v0.8.1 // indirect
-	github.com/stretchr/testify v1.3.0 // indirect
-	golang.org/x/net v0.0.0-20190607181551-461777fb6f67
-	golang.org/x/sys v0.0.0-20190610200419-93c9922d18ae // indirect
+	github.com/stretchr/testify v1.3.0
+	golang.org/x/crypto v0.0.0-20190621222207-cc06ce4a13d4 // indirect
+	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
+	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb // indirect
+	golang.org/x/text v0.3.2 // indirect
+	golang.org/x/tools v0.0.0-20190628185430-d5de6b6fc58b // indirect
+	golang.org/x/tools/gopls v0.1.1 // indirect
 	google.golang.org/grpc v1.21.1
 )

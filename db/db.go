@@ -7,7 +7,6 @@ import (
 
 	"github.com/alexmorten/mgraph/proto"
 	"github.com/dgraph-io/badger"
-	pb "github.com/golang/protobuf/proto"
 )
 
 var (
@@ -90,23 +89,25 @@ func (db *DB) Update(query *proto.Query) (*proto.QueryResponse, error) {
 }
 
 //Find Node
-func (db *DB) Find(key string) {
-	db.store.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(key))
-		if err != nil {
-			return err
-		}
-		b, err := item.Value()
-		if err != nil {
-			return err
-		}
-		n := &proto.Node{}
-		err = pb.Unmarshal(b, n)
-		if err != nil {
-			return err
+func (db *DB) Find(s *proto.FindStatement) (*proto.QueryResponse, error) {
+	response := &proto.QueryResponse{}
+
+	err := db.store.View(func(txn *badger.Txn) error {
+		ctx := &readContext{
+			txn: txn,
 		}
 
-		fmt.Println(n)
+		readRoot := ctx.descendNode(s.Root, s.Root.Key)
+		if readRoot != nil {
+			response.Result = append(response.Result, &proto.StatementResult{Root: readRoot})
+		}
+
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
 }

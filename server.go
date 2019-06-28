@@ -47,14 +47,38 @@ func NewServer() *Server {
 	q := &proto.Query{
 		Statements: []*proto.Statement{&proto.Statement{Type: writeStatement}},
 	}
+	var lastResponse *proto.QueryResponse
+	for i := 0; i < 10; i++ {
+		before := time.Now()
+		response, err := db.Update(q)
+		fmt.Println(float64(time.Since(before).Nanoseconds())/1000000.0, "ms")
+		he(err)
+		m := json.Marshaler{Indent: " "}
+		b := &bytes.Buffer{}
+		he(m.Marshal(b, response))
+		// fmt.Println(b.String())
+		lastResponse = response
+	}
 
-	response, err := db.Update(q)
-	he(err)
+	married := &proto.QueryRelation{Direction: &proto.QueryRelation_To{To: &proto.QueryNode{}}}
+
+	tom := &proto.QueryNode{Key: lastResponse.Result[0].Root.Key, Relations: []*proto.QueryRelation{married}}
+	findStatement := &proto.FindStatement{Root: tom}
+	before := time.Now()
+	response, err := db.Find(findStatement)
+	fmt.Println("Find time: ")
+
+	fmt.Println(float64(time.Since(before).Nanoseconds())/1000000.0, "ms")
+
+	if err != nil {
+		panic(err)
+	}
+
 	m := json.Marshaler{Indent: " "}
 	b := &bytes.Buffer{}
 	he(m.Marshal(b, response))
 	fmt.Println(b.String())
-	// db.Find("50e687b9-3c36-414e-adc0-73d49e0aa57f")
+
 	db.Shutdown()
 	return &Server{
 		db: db,

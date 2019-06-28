@@ -37,12 +37,12 @@ func (c *writeContext) descendRelation(qr *proto.QueryRelation, parentKey string
 	if from != nil {
 		n, wn := c.descendNode(from)
 
-		r := proto.ConstructRelation(qr)
+		r := qr.ConstructRelation()
 		r.From = n.Key
 		r.To = parentKey
 		n.Relations = append(n.Relations, r)
 
-		wr := proto.ConstructQueryRelation(r)
+		wr := r.ConstructQueryRelation(n)
 		wr.Direction = &proto.QueryRelation_From{From: wn}
 
 		return r, wr
@@ -52,12 +52,12 @@ func (c *writeContext) descendRelation(qr *proto.QueryRelation, parentKey string
 	if to != nil {
 		n, wn := c.descendNode(to)
 
-		r := proto.ConstructRelation(qr)
+		r := qr.ConstructRelation()
 		r.To = n.Key
 		r.From = parentKey
 		n.Relations = append(n.Relations, r)
 
-		wr := proto.ConstructQueryRelation(r)
+		wr := r.ConstructQueryRelation(n)
 		wr.Direction = &proto.QueryRelation_To{To: wn}
 
 		return r, wr
