@@ -89,7 +89,7 @@ func (db *DB) Update(query *proto.Query) (*proto.QueryResponse, error) {
 }
 
 //Find Node
-func (db *DB) Find(s *proto.FindStatement) (*proto.QueryResponse, error) {
+func (db *DB) Find(s *proto.Statement_Find) (*proto.QueryResponse, error) {
 	response := &proto.QueryResponse{}
 
 	err := db.store.View(func(txn *badger.Txn) error {
@@ -97,7 +97,7 @@ func (db *DB) Find(s *proto.FindStatement) (*proto.QueryResponse, error) {
 			txn: txn,
 		}
 
-		readRoot := ctx.descendNode(s.Root, s.Root.Key)
+		readRoot := ctx.descendNode(s.Find.Root, s.Find.Root.Key)
 		if readRoot != nil {
 			response.Result = append(response.Result, &proto.StatementResult{Root: readRoot})
 		}
