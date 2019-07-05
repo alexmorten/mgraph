@@ -19,7 +19,7 @@ type Server struct {
 
 //NewServer with initialized DB
 func NewServer() *Server {
-	db, err := db.NewDB(db.DefaultConfig())
+	db, err := db.New(db.DefaultConfig())
 	he(err)
 
 	q := buildCreateQuery()

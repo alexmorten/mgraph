@@ -34,8 +34,8 @@ func DefaultConfig() Config {
 	}
 }
 
-//NewDB with initialized tree
-func NewDB(c Config) (*DB, error) {
+//New with initialized tree
+func New(c Config) (*DB, error) {
 	opts := badger.DefaultOptions
 	opts.Dir = c.Dir
 	opts.ValueDir = c.Dir
