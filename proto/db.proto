@@ -15,6 +15,7 @@ message AttributeValue {
     int64 int_value = 2;
     float float_value = 3;
     double double_value = 4;
+    bool boolean_value = 5;
   }
 }
 
