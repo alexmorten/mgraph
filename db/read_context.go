@@ -26,7 +26,18 @@ func (c *readContext) descendNode(readStatementNode *proto.QueryNode, key string
 	}
 	for _, statementRelation := range readStatementNode.Relations {
 		foundAtLeastOneMatch := false
-		for _, relation := range n.Relations {
+		omitNodeKey := func(k string) bool {
+			if statementRelation.RelatedNode() == nil || statementRelation.RelatedNode().Key == "" {
+				return false
+			}
+
+			return statementRelation.RelatedNode().Key != k
+		}
+		for relationIteration := range iterateRelationsForNode(c.txn, n.Key, omitNodeKey) {
+			if relationIteration.Err != nil {
+				panic(relationIteration.Err)
+			}
+			relation := relationIteration.Relation
 			qr := relation.ConstructQueryRelation(n)
 			if statementRelation.Matches(qr) {
 				relatedNode := statementRelation.RelatedNode()
@@ -60,7 +71,7 @@ func (c *readContext) descendNode(readStatementNode *proto.QueryNode, key string
 }
 
 func (c *readContext) findNode(key string) *proto.Node {
-	foundItem, err := c.txn.Get([]byte(key))
+	foundItem, err := c.txn.Get(pathForNode(key))
 	if err != nil {
 		if err == badger.ErrKeyNotFound {
 			return nil

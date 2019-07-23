@@ -3,12 +3,12 @@ package db
 import (
 	"github.com/alexmorten/mgraph/proto"
 	"github.com/dgraph-io/badger"
-	pb "github.com/golang/protobuf/proto"
 )
 
 type writeContext struct {
-	txn        *badger.Txn
-	nodeWrites map[string]*proto.Node
+	txn            *badger.Txn
+	nodeWrites     map[string]*proto.Node
+	relationWrites []*proto.Relation
 }
 
 func newWriteContext(txn *badger.Txn) *writeContext {
@@ -23,7 +23,7 @@ func (c *writeContext) descendNode(writeStatementNode *proto.QueryNode) (*proto.
 	wn := proto.ConstructQueryNode(n)
 	for _, qr := range writeStatementNode.Relations {
 		r, wr := c.descendRelation(qr, n.Key)
-		n.Relations = append(n.Relations, r)
+		c.relationWrites = append(c.relationWrites, r)
 		wn.Relations = append(wn.Relations, wr)
 	}
 
@@ -40,7 +40,7 @@ func (c *writeContext) descendRelation(qr *proto.QueryRelation, parentKey string
 		r := qr.ConstructRelation()
 		r.From = n.Key
 		r.To = parentKey
-		n.Relations = append(n.Relations, r)
+		c.relationWrites = append(c.relationWrites, r)
 
 		wr := r.ConstructQueryRelation(n)
 		wr.Direction = &proto.QueryRelation_From{From: wn}
@@ -55,7 +55,7 @@ func (c *writeContext) descendRelation(qr *proto.QueryRelation, parentKey string
 		r := qr.ConstructRelation()
 		r.To = n.Key
 		r.From = parentKey
-		n.Relations = append(n.Relations, r)
+		c.relationWrites = append(c.relationWrites, r)
 
 		wr := r.ConstructQueryRelation(n)
 		wr.Direction = &proto.QueryRelation_To{To: wn}
@@ -68,14 +68,16 @@ func (c *writeContext) descendRelation(qr *proto.QueryRelation, parentKey string
 
 func (c *writeContext) write() error {
 	for _, n := range c.nodeWrites {
-		b, err := pb.Marshal(n)
+		err := writeNodeIntoIndex(c.txn, n)
 		if err != nil {
 			return err
 		}
+	}
 
-		err = c.txn.Set([]byte(n.Key), b)
+	for _, relation := range c.relationWrites {
+		err := writeRelationIntoIndex(c.txn, relation)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
 
