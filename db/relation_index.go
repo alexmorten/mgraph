@@ -7,11 +7,12 @@ import (
 )
 
 const relationIndexPrefix = "relations/"
+const relationPrimaryPrefix = relationIndexPrefix + "primary/"
 const relationToPrefix = relationIndexPrefix + "to/"
 const relationFromPrefix = relationIndexPrefix + "from/"
 
 func pathForRelation(key string) []byte {
-	return []byte(relationFromPrefix + key)
+	return []byte(relationPrimaryPrefix + key)
 }
 
 func relationToPrefixForNode(key string) []byte {

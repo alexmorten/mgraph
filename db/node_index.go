@@ -7,9 +7,10 @@ import (
 )
 
 const nodeIndexPrefix = "nodes/"
+const nodePrimaryPrefix = nodeIndexPrefix + "primary/"
 
 func pathForNode(k string) []byte {
-	return []byte(nodeIndexPrefix + k)
+	return []byte(nodePrimaryPrefix + k)
 }
 
 func writeNodeIntoIndex(txn *badger.Txn, n *proto.Node) error {
